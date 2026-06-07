@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unstuck — Task Advisor</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0f0e0d;
+    --ink2: #3a3835;
+    --ink3: #7a7672;
+    --paper: #faf8f4;
+    --paper2: #f2efe9;
+    --paper3: #e8e4dc;
+    --accent: #c8562a;
+    --accent2: #e8b84b;
+    --pro: #2a5c8a;
+    --pro-light: #d6e8f5;
+    --pro-mid: #4a8cbf;
+    --serif: 'Instrument Serif', Georgia, serif;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.5;
+  }
+
+  /* Top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 2.5rem;
+    border-bottom: 1px solid var(--paper3);
+    position: sticky;
+    top: 0;
+    background: rgba(250,248,244,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+
+  .logo span { color: var(--accent); font-style: italic; }
+
+  .plan-pill {
+    display: flex;
+    background: var(--paper2);
+    border: 1px solid var(--paper3);
+    border-radius: 100px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .pill-btn {
+    padding: 6px 18px;
+    border-radius: 100px;
+    border: none;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    background: transparent;
+    color: var(--ink3);
+    transition: all 0.2s;
+  }
+
+  .pill-btn.active-free { background: var(--paper); color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .pill-btn.active-pro { background: var(--pro); color: #fff; box-shadow: 0 1px 4px rgba(42,92,138,0.3); }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 5rem 1.5rem 3rem;
+    max-width: 640px;
+    margin: 0 auto;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(38px, 7vw, 58px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 1.25rem;
+  }
+
+  .hero h1 em { font-style: italic; color: var(--accent); }
+
+  .hero-sub {
+    font-size: 16px;
+    color: var(--ink3);
+    line-height: 1.7;
+    font-weight: 300;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* Main form area */
+  .main {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 1.5rem 5rem;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--paper3);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.05);
+    animation: fadeUp 0.6s 0.15s ease both;
+  }
+
+  .card-header {
+    padding: 1.5rem 1.75rem 0;
+  }
+
+  .card-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+
+  textarea#task-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: var(--serif);
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--ink);
+    resize: none;
+    background: transparent;
+    min-height: 120px;
+  }
+
+  textarea#task-input::placeholder { color: var(--paper3); }
+
+  .card-divider { height: 1px; background: var(--paper2); margin: 1rem 0; }
+
+  .tag-section { padding: 0 1.75rem 1.25rem; }
+
+  .tag-label {
+    font-size: 12px;
+    color: var(--ink3);
+    margin-bottom: 0.75rem;
+    font-weight: 400;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .tag {
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--paper3);
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    color: var(--ink2);
+    background: var(--paper);
+    transition: all 0.18s;
+    user-select: none;
+  }
+
+  .tag:hover { border-color: var(--ink3); }
+  .tag.selected { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .card-footer {
+    border-top: 1px solid var(--paper2);
+    padding: 1rem 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .char-hint { font-size: 12px; color: var(--paper3); }
+
+  .submit-btn {
+    padding: 11px 28px;
+    border-radius: 100px;
+    border: none;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .submit-free {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .submit-free:hover { background: var(--ink2); transform: translateY(-1px); }
+
+  .submit-pro {
+    background: var(--pro);
+    color: #fff;
+  }
+  .submit-pro:hover { background: #1e4a73; transform: translateY(-1px); }
+
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* Result area */
+  #result-area { margin-top: 1.5rem; }
+
+  .result-card {
+    background: #fff;
+    border: 1px solid var(--paper3);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.05);
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .result-card.pro-result {
+    border-color: #b8d5ed;
+    box-shadow: 0 2px 28px rgba(42,92,138,0.1);
+  }
+
+  .result-top {
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1px solid var(--paper2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .result-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    font-weight: 500;
+  }
+
+  .result-label.pro { color: var(--pro); }
+
+  .result-body { padding: 1.75rem; }
+
+  .result-body p {
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.7;
+    color: var(--ink);
+    margin-bottom: 1rem;
+  }
+  .result-body p:last-child { margin-bottom: 0; }
+
+  .section-head {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    font-weight: 500;
+    margin: 1.5rem 0 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--paper2);
+  }
+
+  .section-head:first-child { margin-top: 0; }
+
+  .action-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--paper2);
+  }
+
+  .action-step:last-child { border-bottom: none; }
+
+  .step-num {
+    font-family: var(--serif);
+    font-size: 22px;
+    line-height: 1;
+    color: var(--paper3);
+    min-width: 28px;
+    padding-top: 2px;
+    font-style: italic;
+  }
+
+  .step-text {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink2);
+  }
+
+  .upsell-strip {
+    margin-top: 0;
+    padding: 1rem 1.75rem;
+    background: var(--paper2);
+    border-top: 1px solid var(--paper3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .upsell-text { font-size: 13px; color: var(--ink3); }
+
+  .upsell-btn {
+    padding: 7px 18px;
+    border-radius: 100px;
+    border: 1px solid var(--pro);
+    font-size: 13px;
+    background: transparent;
+    color: var(--pro);
+    cursor: pointer;
+    font-family: var(--sans);
+    white-space: nowrap;
+    transition: all 0.18s;
+  }
+
+  .upsell-btn:hover { background: var(--pro); color: #fff; }
+
+  /* Paywall */
+  .paywall {
+    background: #fff;
+    border: 1px solid var(--paper3);
+    border-radius: var(--radius);
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.05);
+  }
+
+  .paywall-hero {
+    background: linear-gradient(135deg, #0f2a42 0%, #1e4a73 60%, #2a5c8a 100%);
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .paywall-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(74,140,191,0.3) 0%, transparent 70%);
+  }
+
+  .paywall-ornament {
+    font-family: var(--serif);
+    font-size: 64px;
+    line-height: 1;
+    font-style: italic;
+    color: rgba(255,255,255,0.12);
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    pointer-events: none;
+  }
+
+  .paywall-hero h2 {
+    font-family: var(--serif);
+    font-size: 34px;
+    color: #fff;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .paywall-hero h2 em { font-style: italic; color: var(--accent2); }
+
+  .paywall-hero p {
+    font-size: 15px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.65;
+    max-width: 400px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .paywall-price {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+    margin: 1.5rem 0 0;
+    position: relative;
+  }
+
+  .price-amount {
+    font-family: var(--serif);
+    font-size: 52px;
+    color: #fff;
+    line-height: 1;
+    font-style: italic;
+  }
+
+  .price-detail {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .paywall-body { padding: 1.75rem 2rem; }
+
+  .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
+
+  .feat-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    background: var(--paper);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--paper2);
+  }
+
+  .feat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--pro-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 15px;
+    color: var(--pro);
+  }
+
+  .feat-text { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .feat-text strong { display: block; font-weight: 500; color: var(--ink); margin-bottom: 2px; font-size: 13px; }
+
+  .upgrade-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: var(--pro);
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.01em;
+  }
+
+  .upgrade-btn:hover { background: #1e4a73; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(42,92,138,0.3); }
+
+  .paywall-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink3);
+    margin-top: 12px;
+  }
+
+  /* Loading */
+  .loading-wrap {
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .loading-text {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-style: italic;
+    color: var(--ink3);
+    animation: pulse 2s infinite;
+  }
+
+  .loading-bar {
+    width: 200px;
+    height: 2px;
+    background: var(--paper3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .loading-bar-fill {
+    height: 100%;
+    background: var(--ink);
+    border-radius: 2px;
+    animation: loadSlide 1.5s ease infinite;
+  }
+
+  @keyframes loadSlide {
+    0% { width: 0; margin-left: 0; }
+    50% { width: 100%; margin-left: 0; }
+    100% { width: 0; margin-left: 100%; }
+  }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Pro badge on pill */
+  .sparkle { font-size: 11px; }
+
+  @media (max-width: 560px) {
+    .topbar { padding: 1rem 1.25rem; }
+    .hero { padding: 3rem 1.25rem 2rem; }
+    .feat-grid { grid-template-columns: 1fr; }
+    .card-footer { flex-direction: column; align-items: flex-end; }
+    .paywall-hero { padding: 2rem 1.25rem 1.5rem; }
+    .paywall-body { padding: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="logo">un<span>stuck</span></div>
+  <div class="plan-pill">
+    <button class="pill-btn active-free" id="btn-free" onclick="switchPlan('free')">Free</button>
+    <button class="pill-btn" id="btn-pro" onclick="switchPlan('pro')">✦ Pro</button>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">AI task advisor</div>
+  <h1>Get <em>unstuck,</em><br>move forward.</h1>
+  <p class="hero-sub">Describe where you're spinning your wheels. We'll give you a clear path out.</p>
+</section>
+
+<main class="main">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-label">What's blocking you?</div>
+      <textarea id="task-input" placeholder="I'm halfway through writing a report but keep losing focus and don't know where to begin again…" oninput="updateCount()" maxlength="500"></textarea>
+    </div>
+    <div class="card-divider"></div>
+    <div class="tag-section">
+      <div class="tag-label">What does it feel like?</div>
+      <div class="tags">
+        <div class="tag" onclick="toggleTag(this)">Lost motivation</div>
+        <div class="tag" onclick="toggleTag(this)">Don't know where to start</div>
+        <div class="tag" onclick="toggleTag(this)">Overwhelmed</div>
+        <div class="tag" onclick="toggleTag(this)">Distracted</div>
+        <div class="tag" onclick="toggleTag(this)">Perfectionism</div>
+        <div class="tag" onclick="toggleTag(this)">Procrastinating</div>
+        <div class="tag" onclick="toggleTag(this)">Unclear goals</div>
+        <div class="tag" onclick="toggleTag(this)">Energy crash</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="char-hint" id="char-count">0 / 500</div>
+      <button class="submit-btn submit-free" id="submit-btn" onclick="getAdvice()">
+        <span id="btn-label">Get advice</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="result-area"></div>
+</main>
+
+<script>
+let currentPlan = 'free';
+let loading = false;
+
+function switchPlan(plan) {
+  currentPlan = plan;
+  const btnFree = document.getElementById('btn-free');
+  const btnPro = document.getElementById('btn-pro');
+  const submitBtn = document.getElementById('submit-btn');
+  const btnLabel = document.getElementById('btn-label');
+
+  if (plan === 'pro') {
+    btnFree.className = 'pill-btn';
+    btnPro.className = 'pill-btn active-pro';
+    submitBtn.className = 'submit-btn submit-pro';
+    btnLabel.textContent = 'Get pro advice';
+  } else {
+    btnFree.className = 'pill-btn active-free';
+    btnPro.className = 'pill-btn';
+    submitBtn.className = 'submit-btn submit-free';
+    btnLabel.textContent = 'Get advice';
+  }
+  document.getElementById('result-area').innerHTML = '';
+}
+
+function toggleTag(el) { el.classList.toggle('selected'); }
+
+function updateCount() {
+  const val = document.getElementById('task-input').value;
+  document.getElementById('char-count').textContent = val.length + ' / 500';
+}
+
+function getSelectedTags() {
+  return [...document.querySelectorAll('.tag.selected')].map(t => t.textContent).join(', ');
+}
+
+async function getAdvice() {
+  if (loading) return;
+  const input = document.getElementById('task-input').value.trim();
+  if (!input) { document.getElementById('task-input').focus(); return; }
+
+  if (currentPlan === 'pro') { showPaywall(); return; }
+
+  loading = true;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  const tags = getSelectedTags();
+
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-card">
+      <div class="loading-wrap">
+        <div class="loading-text">Thinking it through…</div>
+        <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+      </div>
+    </div>`;
+
+  const tagContext = tags ? `\nProblem type: ${tags}.` : '';
+  const prompt = `You are a warm, practical productivity coach giving FREE tier advice. Keep it concise — 2 short paragraphs max. Be genuinely helpful but don't give an exhaustive breakdown. Think "smart friend's quick take". End with one simple thing they can do right now. Under 110 words. No headers, plain text only.
+
+Stuck on: "${input}"${tagContext}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content.map(b => b.text || '').join('');
+    showFreeResult(text);
+  } catch(e) {
+    document.getElementById('result-area').innerHTML = '<div class="result-card"><div class="result-body"><p>Something went wrong. Please try again.</p></div></div>';
+  }
+  loading = false;
+  btn.disabled = false;
+}
+
+function showFreeResult(text) {
+  const paras = text.split(/\n+/).filter(p => p.trim());
+  const html = paras.map(p => `<p>${p}</p>`).join('');
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-card">
+      <div class="result-top">
+        <div class="result-label">Quick advice</div>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#c8a87a" stroke-width="1"/><path d="M8 5v3.5l2 2" stroke="#c8a87a" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="result-body">${html}</div>
+      <div class="upsell-strip">
+        <div class="upsell-text">Want a full action plan & root cause analysis?</div>
+        <button class="upsell-btn" onclick="switchPlan('pro');document.querySelector('.main').scrollIntoView({behavior:'smooth'})">Try Pro ✦</button>
+      </div>
+    </div>`;
+}
+
+function showPaywall() {
+  document.getElementById('result-area').innerHTML = `
+    <div class="paywall">
+      <div class="paywall-hero">
+        <div class="paywall-ornament">✦</div>
+        <h2>Go from <em>stuck</em><br>to moving.</h2>
+        <p>Pro gives you a full diagnosis, personalised action plan, and long-term strategies — not just a tip.</p>
+        <div class="paywall-price">
+          <div class="price-amount">$7</div>
+          <div class="price-detail">/ month</div>
+        </div>
+      </div>
+      <div class="paywall-body">
+        <div class="feat-grid">
+          <div class="feat-item">
+            <div class="feat-icon">🔍</div>
+            <div class="feat-text"><strong>Root cause</strong>Why you're really stuck, not just symptoms</div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon">📋</div>
+            <div class="feat-text"><strong>Action plan</strong>Step-by-step path forward, right now</div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon">🧠</div>
+            <div class="feat-text"><strong>Mindset shifts</strong>Reframe the block at its core</div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon">📈</div>
+            <div class="feat-text"><strong>Stay unstuck</strong>Habits to prevent it recurring</div>
+          </div>
+        </div>
+        <button class="upgrade-btn" onclick="simulateUpgrade()">Start 7-day free trial</button>
+        <div class="paywall-note">Cancel anytime. No charge for 7 days.</div>
+      </div>
+    </div>`;
+}
+
+async function simulateUpgrade() {
+  const input = document.getElementById('task-input').value.trim();
+  if (!input) return;
+  const tags = getSelectedTags();
+
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-card pro-result">
+      <div class="loading-wrap">
+        <div class="loading-text">Building your plan…</div>
+        <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+      </div>
+    </div>`;
+
+  const tagContext = tags ? `\nProblem type: ${tags}.` : '';
+  const prompt = `You are an expert productivity coach giving PREMIUM advice. Be thorough, structured, and personalised.
+
+Format your response with EXACTLY these section headers on their own lines:
+Root cause
+Action plan
+Stay on track
+
+Under "Action plan" number each step 1, 2, 3, 4 on separate lines. Be specific, warm, insightful. ~250 words total.
+
+Stuck on: "${input}"${tagContext}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content.map(b => b.text || '').join('');
+    showProResult(text);
+  } catch(e) {
+    document.getElementById('result-area').innerHTML = '<div class="result-card"><div class="result-body"><p>Something went wrong. Please try again.</p></div></div>';
+  }
+}
+
+function showProResult(rawText) {
+  const sections = { intro: '', rootCause: '', actionPlan: [], stayOnTrack: '' };
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  let mode = 'intro';
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (lower === 'root cause') { mode = 'root'; continue; }
+    if (lower === 'action plan') { mode = 'action'; continue; }
+    if (lower === 'stay on track') { mode = 'stay'; continue; }
+    if (mode === 'intro') sections.intro += line + ' ';
+    else if (mode === 'root') sections.rootCause += line + ' ';
+    else if (mode === 'action') { const c = line.replace(/^\d+[\.\)]\s*/, ''); if (c) sections.actionPlan.push(c); }
+    else if (mode === 'stay') sections.stayOnTrack += line + ' ';
+  }
+
+  const stepsHTML = sections.actionPlan.map((s, i) => `
+    <div class="action-step">
+      <div class="step-num">${i + 1}</div>
+      <div class="step-text">${s}</div>
+    </div>`).join('');
+
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-card pro-result">
+      <div class="result-top">
+        <div class="result-label pro">✦ Pro advice</div>
+      </div>
+      <div class="result-body">
+        ${sections.intro ? `<p>${sections.intro.trim()}</p>` : ''}
+        ${sections.rootCause ? `<div class="section-head">Root cause</div><p style="font-size:16px;font-family:var(--sans);line-height:1.7;color:var(--ink2)">${sections.rootCause.trim()}</p>` : ''}
+        ${sections.actionPlan.length ? `<div class="section-head">Action plan</div>${stepsHTML}` : ''}
+        ${sections.stayOnTrack ? `<div class="section-head">Stay on track</div><p style="font-size:16px;font-family:var(--sans);line-height:1.7;color:var(--ink2)">${sections.stayOnTrack.trim()}</p>` : ''}
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
